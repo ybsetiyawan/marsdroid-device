@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Registrasi Perangkat Marsdroid</title>
+  <script src="https://telegram.org/js/telegram-web-app.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/ua-parser-js@1.0.38/dist/ua-parser.min.js"></script>
+  <style>
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      padding: 16px;
+      margin: 0;
+      background-color: var(--tg-theme-bg-color, #ffffff);
+      color: var(--tg-theme-text-color, #222222);
+    }
+    h3 { margin-top: 0; font-size: 18px; }
+    .note {
+      font-size: 13px;
+      color: var(--tg-theme-hint-color, #666666);
+      margin-bottom: 16px;
+    }
+    .form-group { margin-bottom: 14px; }
+    label {
+      display: block;
+      font-size: 13px;
+      font-weight: 600;
+      margin-bottom: 6px;
+    }
+    input {
+      width: 100%;
+      padding: 10px 12px;
+      box-sizing: border-box;
+      border: 1px solid var(--tg-theme-hint-color, #cccccc);
+      border-radius: 8px;
+      font-size: 15px;
+      background-color: var(--tg-theme-secondary-bg-color, #f4f4f5);
+      color: var(--tg-theme-text-color, #000000);
+    }
+    input:focus {
+      outline: none;
+      border-color: var(--tg-theme-button-color, #2481cc);
+    }
+    button {
+      width: 100%;
+      padding: 12px;
+      margin-top: 8px;
+      border: none;
+      border-radius: 8px;
+      font-size: 16px;
+      font-weight: bold;
+      cursor: pointer;
+      background-color: var(--tg-theme-button-color, #2481cc);
+      color: var(--tg-theme-button-text-color, #ffffff);
+    }
+    button:active { opacity: 0.85; }
+  </style>
+</head>
+<body>
+
+  <h3>📱 Data Perangkat Ponsel</h3>
+  <p class="note">Data merk, model, dan OS terdeteksi otomatis. Silakan koreksi jika tidak sesuai, lalu isi nomor IMEI.</p>
+
+  <div class="form-group">
+    <label for="brand">Merk Ponsel (Brand)</label>
+    <input type="text" id="brand" placeholder="Contoh: Samsung / Oppo / Vivo" />
+  </div>
+
+  <div class="form-group">
+    <label for="model">Model / Tipe Perangkat</label>
+    <input type="text" id="model" placeholder="Contoh: Galaxy A15 / CPH2591" />
+  </div>
+
+  <div class="form-group">
+    <label for="os">Sistem Operasi (OS)</label>
+    <input type="text" id="os" placeholder="Contoh: Android 14" />
+  </div>
+
+  <div class="form-group">
+    <label for="imei">Nomor IMEI 1 (Cek melalui dial *#06#)</label>
+    <input type="tel" id="imei" maxlength="16" placeholder="Masukkan 15 digit angka IMEI" />
+  </div>
+
+  <button id="submit-btn">✅ Simpan & Kirim ke Bot</button>
+
+  <script>
+    const tg = window.Telegram.WebApp;
+    tg.ready();
+    tg.expand();
+
+    async function detectDevice() {
+      const parser = new UAParser();
+      const result = parser.getResult();
+
+      let brand = result.device.vendor || '';
+      let model = result.device.model || '';
+      let os = `${result.os.name || ''} ${result.os.version || ''}`.trim();
+
+      // Coba ambil data lebih akurat via User-Agent Client Hints (untuk Android Chrome terbaru)
+      if (navigator.userAgentData && navigator.userAgentData.getHighEntropyValues) {
+        try {
+          const uaData = await navigator.userAgentData.getHighEntropyValues(['model', 'platformVersion']);
+          if (uaData.model && uaData.model !== 'K') {
+            model = uaData.model;
+          }
+        } catch (e) {
+          // Abaikan jika browser memblokir akses high entropy
+        }
+      }
+
+      // Bersihkan jika model terbaca "K" (standar privasi Chrome Mobile)
+      if (model === 'K') model = '';
+
+      document.getElementById('brand').value = brand;
+      document.getElementById('model').value = model;
+      document.getElementById('os').value = os;
+    }
+
+    detectDevice();
+
+    document.getElementById('submit-btn').addEventListener('click', () => {
+      const brand = document.getElementById('brand').value.trim();
+      const model = document.getElementById('model').value.trim();
+      const os = document.getElementById('os').value.trim();
+      const imei = document.getElementById('imei').value.trim();
+
+      if (!brand || !model) {
+        tg.showAlert('Mohon lengkapi Merk dan Model/Tipe ponsel Anda.');
+        return;
+      }
+
+      if (!/^\d{14,16}$/.test(imei)) {
+        tg.showAlert('Nomor IMEI tidak valid. Harap masukkan 15 digit angka saja.');
+        return;
+      }
+
+      const payload = JSON.stringify({ brand, model, os, imei });
+      tg.sendData(payload);
+    });
+  </script>
+
+</body>
+</html>
